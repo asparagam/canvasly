@@ -2,8 +2,8 @@ import React, { useState, useRef } from 'react';
 import type { Screen, FlowConnection, Comment } from '../../types';
 import { ScreenRenderer } from '../Screens/ScreenRenderer';
 import { 
-  ZoomIn, ZoomOut, Maximize2, Play, MessageSquare, 
-  Sparkles, GitFork, Code, Copy, Trash2, Move
+  Sparkles, GitFork, Code, Copy, Trash2, Move, MousePointer, 
+  Square, Edit3, Hand, Image as ImageIcon, Palette, Star, RotateCcw, RotateCw, HelpCircle
 } from 'lucide-react';
 
 interface InfiniteCanvasProps {
@@ -29,7 +29,7 @@ interface InfiniteCanvasProps {
 export const InfiniteCanvas: React.FC<InfiniteCanvasProps> = ({
   screens,
   flowConnections,
-  comments,
+  comments: _comments,
   selectedScreenId,
   onSelectScreen,
   onMoveScreen,
@@ -40,19 +40,22 @@ export const InfiniteCanvas: React.FC<InfiniteCanvasProps> = ({
   onEditScreenWithAI,
   onViewScreenCode,
   onConnectFlow,
-  activeMode,
-  onPlayPrototype,
+  activeMode: _activeMode,
+  onPlayPrototype: _onPlayPrototype,
   isGenerating,
   activeGeneratingScreenId
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   
   // Pan and Zoom states
-  const [zoom, setZoom] = useState<number>(0.85);
-  const [pan, setPan] = useState<{ x: number; y: number }>({ x: 40, y: 40 });
+  const [zoom, setZoom] = useState<number>(0.55);
+  const [pan, setPan] = useState<{ x: number; y: number }>({ x: 60, y: 60 });
   const [isPanning, setIsPanning] = useState<boolean>(false);
   const [startPan, setStartPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   
+  // Active right tool selection
+  const [activeTool, setActiveTool] = useState<'select' | 'frame' | 'edit' | 'hand' | 'image' | 'color' | 'star'>('select');
+
   // Dragging screen state
   const [draggingScreenId, setDraggingScreenId] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -63,15 +66,12 @@ export const InfiniteCanvas: React.FC<InfiniteCanvasProps> = ({
     width: 0, height: 0, mouseX: 0, mouseY: 0
   });
 
-  // Comments overlay toggle
-  const [showComments, setShowComments] = useState<boolean>(true);
-
   // Mouse wheel zoom
   const handleWheel = (e: React.WheelEvent) => {
     if (e.ctrlKey || e.metaKey) {
       e.preventDefault();
       const zoomDelta = e.deltaY > 0 ? -0.05 : 0.05;
-      setZoom((prev) => Math.min(Math.max(0.3, prev + zoomDelta), 2.0));
+      setZoom((prev) => Math.min(Math.max(0.15, prev + zoomDelta), 2.0));
     } else {
       setPan((prev) => ({
         x: prev.x - e.deltaX * 0.8,
@@ -90,7 +90,7 @@ export const InfiniteCanvas: React.FC<InfiniteCanvasProps> = ({
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (isPanning) {
+    if (isPanning || activeTool === 'hand') {
       setPan({
         x: e.clientX - startPan.x,
         y: e.clientY - startPan.y
@@ -139,12 +139,6 @@ export const InfiniteCanvas: React.FC<InfiniteCanvasProps> = ({
     });
   };
 
-  // Center fit view
-  const fitToScreen = () => {
-    setZoom(0.75);
-    setPan({ x: 60, y: 60 });
-  };
-
   return (
     <div
       ref={containerRef}
@@ -153,58 +147,118 @@ export const InfiniteCanvas: React.FC<InfiniteCanvasProps> = ({
       onMouseDown={handleCanvasMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
-      className="flex-1 h-full bg-canvas-dots relative overflow-hidden cursor-grab active:cursor-grabbing select-none"
+      className={`flex-1 h-full bg-canvas-dots relative overflow-hidden select-none ${
+        activeTool === 'hand' ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'
+      }`}
     >
-      {/* Top Floating Canvas Toolbar */}
-      <div className="absolute top-4 right-4 z-20 bg-[#121420]/90 backdrop-blur-md border border-slate-800 rounded-2xl p-1.5 flex items-center gap-1 shadow-xl">
+      {/* Top Left Floating AI Activity Card (Stitch Style) */}
+      <div className="absolute top-4 left-4 z-20 bg-[#1a1b24]/90 backdrop-blur-xl border border-white/10 rounded-2xl p-4 shadow-2xl space-y-3 w-64">
+        <div className="flex items-center gap-2">
+          <div className="w-5 h-5 rounded-md bg-white text-black flex items-center justify-center font-bold text-[10px]">
+            ••
+          </div>
+          <span className="text-xs font-semibold text-white">
+            {isGenerating ? 'Generating screens...' : 'Prototype created'}
+          </span>
+        </div>
+
+        {/* Thumbnail Strip */}
+        <div className="flex gap-1.5 overflow-x-auto pt-1">
+          {screens.map(s => (
+            <div key={s.id} className="w-8 h-10 bg-slate-900 border border-white/10 rounded overflow-hidden shrink-0">
+              <div className="w-full h-full bg-gradient-to-tr from-violet-600/30 to-cyan-400/20"></div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Right Vertical Floating Toolbar (Stitch Style) */}
+      <div className="absolute top-1/2 right-4 -translate-y-1/2 z-30 bg-[#161824]/90 backdrop-blur-xl border border-white/10 rounded-full p-1.5 flex flex-col gap-2 shadow-2xl">
         <button
-          onClick={() => setZoom((z) => Math.max(0.3, z - 0.1))}
-          className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-          title="Zoom Out"
-        >
-          <ZoomOut className="w-4 h-4" />
-        </button>
-
-        <span className="text-xs font-mono font-semibold text-slate-300 px-2 min-w-[50px] text-center">
-          {Math.round(zoom * 100)}%
-        </span>
-
-        <button
-          onClick={() => setZoom((z) => Math.min(2.0, z + 0.1))}
-          className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-          title="Zoom In"
-        >
-          <ZoomIn className="w-4 h-4" />
-        </button>
-
-        <div className="h-4 w-[1px] bg-slate-800 my-auto mx-1"></div>
-
-        <button
-          onClick={fitToScreen}
-          className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-          title="Fit to Screen"
-        >
-          <Maximize2 className="w-4 h-4" />
-        </button>
-
-        <button
-          onClick={() => setShowComments((prev) => !prev)}
-          className={`p-2 rounded-xl transition-colors ${
-            showComments ? 'bg-violet-600/30 text-violet-400 border border-violet-500/30' : 'text-slate-400 hover:text-white'
+          onClick={() => setActiveTool('select')}
+          className={`p-2.5 rounded-full transition-colors ${
+            activeTool === 'select' ? 'bg-white text-black font-bold shadow-md' : 'text-slate-400 hover:text-white'
           }`}
-          title="Toggle Comments"
+          title="Select (V)"
         >
-          <MessageSquare className="w-4 h-4" />
+          <MousePointer className="w-4 h-4" />
         </button>
 
-        <div className="h-4 w-[1px] bg-slate-800 my-auto mx-1"></div>
+        <button
+          onClick={() => setActiveTool('frame')}
+          className={`p-2.5 rounded-full transition-colors ${
+            activeTool === 'frame' ? 'bg-white text-black font-bold shadow-md' : 'text-slate-400 hover:text-white'
+          }`}
+          title="Frame / Screen (F)"
+        >
+          <Square className="w-4 h-4" />
+        </button>
 
         <button
-          onClick={onPlayPrototype}
-          className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-semibold text-xs shadow-lg shadow-emerald-600/20 hover:opacity-90 flex items-center gap-1.5"
+          onClick={() => setActiveTool('edit')}
+          className={`p-2.5 rounded-full transition-colors ${
+            activeTool === 'edit' ? 'bg-white text-black font-bold shadow-md' : 'text-slate-400 hover:text-white'
+          }`}
+          title="Pencil Edit"
         >
-          <Play className="w-3.5 h-3.5 fill-current" />
-          <span>Preview</span>
+          <Edit3 className="w-4 h-4" />
+        </button>
+
+        <button
+          onClick={() => setActiveTool('hand')}
+          className={`p-2.5 rounded-full transition-colors ${
+            activeTool === 'hand' ? 'bg-white text-black font-bold shadow-md' : 'text-slate-400 hover:text-white'
+          }`}
+          title="Hand Pan (H)"
+        >
+          <Hand className="w-4 h-4" />
+        </button>
+
+        <button
+          onClick={() => setActiveTool('image')}
+          className={`p-2.5 rounded-full transition-colors ${
+            activeTool === 'image' ? 'bg-white text-black font-bold shadow-md' : 'text-slate-400 hover:text-white'
+          }`}
+          title="Asset Image"
+        >
+          <ImageIcon className="w-4 h-4" />
+        </button>
+
+        <button
+          onClick={() => setActiveTool('color')}
+          className={`p-2.5 rounded-full transition-colors ${
+            activeTool === 'color' ? 'bg-white text-black font-bold shadow-md' : 'text-slate-400 hover:text-white'
+          }`}
+          title="Color System"
+        >
+          <Palette className="w-4 h-4" />
+        </button>
+
+        <button
+          onClick={() => setActiveTool('star')}
+          className={`p-2.5 rounded-full transition-colors ${
+            activeTool === 'star' ? 'bg-white text-black font-bold shadow-md' : 'text-slate-400 hover:text-white'
+          }`}
+          title="Components & Assets"
+        >
+          <Star className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* Bottom Right Zoom & Controls Bar (Stitch Style) */}
+      <div className="absolute bottom-6 right-6 z-30 flex items-center gap-2">
+        <div className="bg-[#141624]/90 backdrop-blur-xl border border-white/10 rounded-full px-3 py-1.5 flex items-center gap-2 text-xs font-semibold text-slate-300 shadow-xl">
+          <button onClick={() => setZoom(z => Math.max(0.15, z - 0.05))} className="p-1 hover:text-white">
+            <RotateCcw className="w-3.5 h-3.5" />
+          </button>
+          <button onClick={() => setZoom(z => Math.min(2.0, z + 0.05))} className="p-1 hover:text-white">
+            <RotateCw className="w-3.5 h-3.5" />
+          </button>
+          <span className="font-mono text-[11px] px-1">{Math.round(zoom * 100)}%</span>
+        </div>
+
+        <button className="w-8 h-8 rounded-full bg-[#141624]/90 backdrop-blur-xl border border-white/10 flex items-center justify-center text-slate-400 hover:text-white shadow-xl">
+          <HelpCircle className="w-4 h-4" />
         </button>
       </div>
 
@@ -219,36 +273,12 @@ export const InfiniteCanvas: React.FC<InfiniteCanvasProps> = ({
       >
         {/* SVG Flow Connections Overlay */}
         <svg className="absolute top-0 left-0 w-[5000px] h-[5000px] pointer-events-none z-10 overflow-visible">
-          <defs>
-            <marker
-              id="arrowhead-violet"
-              markerWidth="10"
-              markerHeight="7"
-              refX="9"
-              refY="3.5"
-              orient="auto"
-            >
-              <polygon points="0 0, 10 3.5, 0 7" fill="#8b5cf6" />
-            </marker>
-            <marker
-              id="arrowhead-cyan"
-              markerWidth="10"
-              markerHeight="7"
-              refX="9"
-              refY="3.5"
-              orient="auto"
-            >
-              <polygon points="0 0, 10 3.5, 0 7" fill="#38bdf8" />
-            </marker>
-          </defs>
-
           {flowConnections.map((conn) => {
             const srcScreen = screens.find((s) => s.id === conn.sourceScreenId);
             const tgtScreen = screens.find((s) => s.id === conn.targetScreenId);
 
             if (!srcScreen || !tgtScreen) return null;
 
-            // Compute connection points
             const startX = srcScreen.x + srcScreen.width;
             const startY = srcScreen.y + srcScreen.height / 2;
             const endX = tgtScreen.x;
@@ -257,32 +287,16 @@ export const InfiniteCanvas: React.FC<InfiniteCanvasProps> = ({
             const controlDist = Math.abs(endX - startX) * 0.5;
             const pathData = `M ${startX} ${startY} C ${startX + controlDist} ${startY}, ${endX - controlDist} ${endY}, ${endX} ${endY}`;
 
-            const isPrototypeMode = activeMode === 'prototype';
-
             return (
               <g key={conn.id}>
-                {/* Glow backdrop line */}
                 <path
                   d={pathData}
                   fill="none"
                   stroke={conn.color || '#8b5cf6'}
-                  strokeWidth={isPrototypeMode ? "4" : "2.5"}
-                  strokeOpacity={isPrototypeMode ? "0.9" : "0.5"}
-                  markerEnd="url(#arrowhead-violet)"
-                  className={isPrototypeMode ? "flow-line" : ""}
+                  strokeWidth="2.5"
+                  strokeOpacity="0.6"
+                  className="flow-line"
                 />
-                {/* Connection Label Pill */}
-                <foreignObject
-                  x={(startX + endX) / 2 - 60}
-                  y={(startY + endY) / 2 - 14}
-                  width="120"
-                  height="28"
-                  className="overflow-visible"
-                >
-                  <div className="bg-[#121424] border border-violet-500/40 text-violet-300 text-[10px] font-semibold px-2 py-1 rounded-full shadow-lg text-center truncate">
-                    {conn.sourceLabel} ➔
-                  </div>
-                </foreignObject>
               </g>
             );
           })}
@@ -312,46 +326,37 @@ export const InfiniteCanvas: React.FC<InfiniteCanvasProps> = ({
                   : 'hover:ring-1 hover:ring-slate-700 z-10'
               } ${isGeneratingThis ? 'animate-ai-pulse ring-2 ring-cyan-400' : ''}`}
             >
-              {/* Contextual Floating Toolbar (Only on Selected Screen) */}
+              {/* Contextual Floating Toolbar (Selected Screen) */}
               {isSelected && (
                 <div className="absolute -top-12 left-0 right-0 flex justify-center z-30 pointer-events-auto">
                   <div className="bg-[#141724]/95 backdrop-blur-md border border-violet-500/50 rounded-xl p-1 flex items-center gap-1 shadow-2xl">
                     <button
                       onClick={() => onEditScreenWithAI(screen)}
                       className="px-2.5 py-1 rounded-lg bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-semibold text-xs flex items-center gap-1 hover:opacity-90"
-                      title="Ask AI to revise this screen"
                     >
                       <Sparkles className="w-3.5 h-3.5" /> Edit with AI
                     </button>
-
                     <button
                       onClick={() => onConnectFlow(screen.id)}
-                      className="p-1.5 rounded-lg bg-slate-900 text-cyan-400 hover:bg-slate-800 text-xs flex items-center gap-1"
-                      title="Connect flow path"
+                      className="p-1.5 rounded-lg bg-slate-900 text-cyan-400 text-xs flex items-center gap-1"
                     >
                       <GitFork className="w-3.5 h-3.5" /> Flow
                     </button>
-
                     <button
                       onClick={() => onViewScreenCode(screen)}
-                      className="p-1.5 rounded-lg bg-slate-900 text-slate-300 hover:bg-slate-800 text-xs flex items-center gap-1"
-                      title="Inspect React + Tailwind Code"
+                      className="p-1.5 rounded-lg bg-slate-900 text-slate-300 text-xs flex items-center gap-1"
                     >
                       <Code className="w-3.5 h-3.5" /> Code
                     </button>
-
                     <button
                       onClick={() => onDuplicateScreen(screen.id)}
                       className="p-1.5 rounded-lg bg-slate-900 text-slate-300 hover:bg-slate-800"
-                      title="Duplicate screen"
                     >
                       <Copy className="w-3.5 h-3.5" />
                     </button>
-
                     <button
                       onClick={() => onDeleteScreen(screen.id)}
                       className="p-1.5 rounded-lg bg-slate-900 text-red-400 hover:bg-red-950/40"
-                      title="Delete screen"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -359,25 +364,19 @@ export const InfiniteCanvas: React.FC<InfiniteCanvasProps> = ({
                 </div>
               )}
 
-              {/* Frame Header Bar (Draggable) */}
+              {/* Frame Header Bar */}
               <div
                 onMouseDown={(e) => handleScreenMouseDown(e, screen)}
-                className="h-9 bg-[#121422] border-b border-slate-800/90 rounded-t-2xl px-3 flex items-center justify-between cursor-move text-xs font-semibold text-slate-300"
+                className="h-8 bg-[#121422] border-b border-white/10 rounded-t-2xl px-3 flex items-center justify-between cursor-move text-xs font-semibold text-slate-300"
               >
                 <div className="flex items-center gap-2 truncate">
                   <Move className="w-3.5 h-3.5 text-slate-500" />
                   <span className="truncate">{screen.title}</span>
-                  <span className="text-[10px] bg-slate-800 text-slate-400 px-1.5 py-0.2 rounded font-normal uppercase">
-                    {screen.device}
-                  </span>
                 </div>
-
-                <div className="text-[10px] font-mono text-slate-500">
-                  {screen.width} × {screen.height}
-                </div>
+                <span className="text-[10px] font-mono text-slate-500">{screen.width} × {screen.height}</span>
               </div>
 
-              {/* Live Rendered Screen Component */}
+              {/* Screen Renderer Component */}
               <div className="flex-1 overflow-hidden bg-[#0a0b10] rounded-b-2xl relative">
                 <ScreenRenderer
                   screen={screen}
@@ -387,32 +386,13 @@ export const InfiniteCanvas: React.FC<InfiniteCanvasProps> = ({
                     }
                   }}
                 />
-
-                {/* Comment Pins Overlay */}
-                {showComments && comments.filter(c => c.screenId === screen.id).map(comment => (
-                  <div 
-                    key={comment.id} 
-                    style={{ left: `${comment.x}px`, top: `${comment.y}px` }} 
-                    className="absolute z-20 group"
-                  >
-                    <div className="w-6 h-6 rounded-full bg-violet-600 border-2 border-white shadow-lg flex items-center justify-center font-bold text-[10px] text-white cursor-pointer transform hover:scale-110 transition-transform">
-                      💬
-                    </div>
-                    <div className="hidden group-hover:block absolute left-7 top-0 w-52 bg-[#121424] border border-violet-500/40 p-2.5 rounded-xl shadow-2xl text-xs z-30">
-                      <div className="font-semibold text-white">{comment.author}</div>
-                      <p className="text-slate-300 text-[11px] mt-1">{comment.text}</p>
-                      <span className="text-[9px] text-slate-500 mt-1 block">{comment.timestamp}</span>
-                    </div>
-                  </div>
-                ))}
               </div>
 
-              {/* Resize Handle (Bottom-Right Corner) */}
+              {/* Resize Handle */}
               {isSelected && (
                 <div
                   onMouseDown={(e) => handleResizeMouseDown(e, screen)}
                   className="absolute bottom-0 right-0 w-4 h-4 bg-violet-500 rounded-tl-md cursor-se-resize z-30 flex items-center justify-center"
-                  title="Drag to resize screen"
                 >
                   <div className="w-1.5 h-1.5 border-r-2 border-b-2 border-white"></div>
                 </div>
