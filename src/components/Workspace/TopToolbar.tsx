@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
 import type { Project } from '../../types';
 import { 
   ArrowLeft, Share2, Play, Code, Download, Globe, 
-  Check, Layers, GitFork, Sliders
+  Layers, GitFork, Sliders, Database
 } from 'lucide-react';
+import React, { useState } from 'react';
 
 interface TopToolbarProps {
   project: Project;
@@ -15,6 +15,7 @@ interface TopToolbarProps {
   onOpenCodeModal: () => void;
   onOpenFigmaModal: () => void;
   onOpenPublishModal: () => void;
+  onOpenNeonModal: () => void;
   onBackToDashboard: () => void;
 }
 
@@ -28,6 +29,7 @@ export const TopToolbar: React.FC<TopToolbarProps> = ({
   onOpenCodeModal,
   onOpenFigmaModal,
   onOpenPublishModal,
+  onOpenNeonModal,
   onBackToDashboard,
 }) => {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -90,10 +92,16 @@ export const TopToolbar: React.FC<TopToolbarProps> = ({
           )}
         </div>
 
-        {/* Live Saved Pill */}
-        <span className="hidden md:flex items-center gap-1 text-[11px] text-emerald-400 bg-emerald-950/40 border border-emerald-800/40 px-2 py-0.5 rounded-full font-medium">
-          <Check className="w-3 h-3" /> Saved locally
-        </span>
+        {/* Neon Database Status Button */}
+        <button
+          onClick={onOpenNeonModal}
+          className="hidden lg:flex items-center gap-1.5 text-[11px] text-emerald-300 bg-emerald-950/60 border border-emerald-500/40 px-2.5 py-1 rounded-full font-medium hover:border-emerald-400 transition-all shadow-sm"
+          title="Neon Serverless Postgres Connected"
+        >
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <Database className="w-3.5 h-3.5 text-emerald-400" />
+          <span>Neon DB</span>
+        </button>
       </div>
 
       {/* Center: Mode Switcher */}
@@ -134,25 +142,6 @@ export const TopToolbar: React.FC<TopToolbarProps> = ({
 
       {/* Right: Actions */}
       <div className="flex items-center gap-2">
-        {/* Collaborators */}
-        <div className="hidden lg:flex items-center -space-x-2 mr-2">
-          <img 
-            src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80&auto=format&fit=crop&q=80" 
-            alt="Collab" 
-            className="w-7 h-7 rounded-full border-2 border-[#0e1017] object-cover" 
-            title="Elena Vance (Active)" 
-          />
-          <img 
-            src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&auto=format&fit=crop&q=80" 
-            alt="Collab" 
-            className="w-7 h-7 rounded-full border-2 border-[#0e1017] object-cover" 
-            title="Marcus Ray (Active)" 
-          />
-          <div className="w-7 h-7 rounded-full bg-slate-800 border-2 border-[#0e1017] flex items-center justify-center text-[10px] font-bold text-slate-300">
-            +3
-          </div>
-        </div>
-
         {/* Share Button */}
         <button
           onClick={onOpenShareModal}

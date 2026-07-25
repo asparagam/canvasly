@@ -14,6 +14,8 @@ import { ShareModal } from './components/Modals/ShareModal';
 import { FigmaExportModal } from './components/Modals/FigmaExportModal';
 import { PublishModal } from './components/Modals/PublishModal';
 import { SettingsModal } from './components/Modals/SettingsModal';
+import { NeonDatabaseModal } from './components/Modals/NeonDatabaseModal';
+import { NeonDatabaseService } from './services/neonService';
 
 import { AlertTriangle } from 'lucide-react';
 
@@ -53,8 +55,10 @@ export default function App() {
 
   // Active Modals
   const [activeModal, setActiveModal] = useState<
-    'prototype' | 'code' | 'share' | 'figma' | 'publish' | 'settings' | null
+    'prototype' | 'code' | 'share' | 'figma' | 'publish' | 'settings' | 'neon' | null
   >(null);
+
+  const activeProject = projects.find((p) => p.id === activeProjectId) || projects[0];
 
   // Screen for targeted code inspection or edit
   const [targetedScreenForCode, setTargetedScreenForCode] = useState<Screen | null>(null);
@@ -76,7 +80,12 @@ export default function App() {
     localStorage.setItem('canvasly_projects', JSON.stringify(projects));
   }, [projects]);
 
-  const activeProject = projects.find((p) => p.id === activeProjectId) || projects[0];
+  // Auto-sync project to Neon Serverless Postgres in background
+  useEffect(() => {
+    if (activeProject) {
+      NeonDatabaseService.syncProjectToNeon(activeProject);
+    }
+  }, [activeProject]);
 
   // Helper to update active project
   const updateActiveProject = (updater: (prevProj: Project) => Project) => {
@@ -422,6 +431,7 @@ export default function App() {
             }}
             onOpenFigmaModal={() => setActiveModal('figma')}
             onOpenPublishModal={() => setActiveModal('publish')}
+            onOpenNeonModal={() => setActiveModal('neon')}
             onBackToDashboard={() => setActiveView('dashboard')}
           />
 
@@ -529,6 +539,17 @@ export default function App() {
       {activeModal === 'settings' && (
         <SettingsModal
           onClose={() => setActiveModal(null)}
+        />
+      )}
+
+      {activeModal === 'neon' && (
+        <NeonDatabaseModal
+          onClose={() => setActiveModal(null)}
+          onSyncNow={() => {
+            if (activeProject) {
+              NeonDatabaseService.syncProjectToNeon(activeProject);
+            }
+          }}
         />
       )}
     </div>
