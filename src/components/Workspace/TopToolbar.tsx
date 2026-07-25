@@ -1,7 +1,7 @@
 import type { Project } from '../../types';
 import { 
   ArrowLeft, Share2, Play, Code, Download, Globe, 
-  Layers, GitFork, Sliders, Database
+  Layers, GitFork, Sliders, Database, Cloud, Zap
 } from 'lucide-react';
 import React, { useState } from 'react';
 
@@ -16,7 +16,10 @@ interface TopToolbarProps {
   onOpenFigmaModal: () => void;
   onOpenPublishModal: () => void;
   onOpenNeonModal: () => void;
+  onOpenGcsModal: () => void;
+  onOpenPricingModal: () => void;
   onBackToDashboard: () => void;
+  currentPlanName?: string;
 }
 
 export const TopToolbar: React.FC<TopToolbarProps> = ({
@@ -30,7 +33,10 @@ export const TopToolbar: React.FC<TopToolbarProps> = ({
   onOpenFigmaModal,
   onOpenPublishModal,
   onOpenNeonModal,
+  onOpenGcsModal,
+  onOpenPricingModal,
   onBackToDashboard,
+  currentPlanName = 'Starter'
 }) => {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleInput, setTitleInput] = useState(project.name);
@@ -92,10 +98,30 @@ export const TopToolbar: React.FC<TopToolbarProps> = ({
           )}
         </div>
 
+        {/* Current Plan Badge Trigger */}
+        <button
+          onClick={onOpenPricingModal}
+          className="hidden md:flex items-center gap-1.5 text-[11px] text-violet-300 bg-violet-950/60 border border-violet-500/40 px-2.5 py-1 rounded-full font-medium hover:border-violet-400 transition-all shadow-sm"
+          title="View Pricing Plans"
+        >
+          <Zap className="w-3 h-3 text-cyan-400" />
+          <span>{currentPlanName} Plan</span>
+        </button>
+
+        {/* Google Cloud Storage Save Badge */}
+        <button
+          onClick={onOpenGcsModal}
+          className="hidden lg:flex items-center gap-1.5 text-[11px] text-cyan-300 bg-cyan-950/60 border border-cyan-500/40 px-2.5 py-1 rounded-full font-medium hover:border-cyan-400 transition-all shadow-sm"
+          title="Google Cloud Storage Save & Backup"
+        >
+          <Cloud className="w-3.5 h-3.5 text-cyan-400" />
+          <span>Google Cloud</span>
+        </button>
+
         {/* Neon Database Status Button */}
         <button
           onClick={onOpenNeonModal}
-          className="hidden lg:flex items-center gap-1.5 text-[11px] text-emerald-300 bg-emerald-950/60 border border-emerald-500/40 px-2.5 py-1 rounded-full font-medium hover:border-emerald-400 transition-all shadow-sm"
+          className="hidden xl:flex items-center gap-1.5 text-[11px] text-emerald-300 bg-emerald-950/60 border border-emerald-500/40 px-2.5 py-1 rounded-full font-medium hover:border-emerald-400 transition-all shadow-sm"
           title="Neon Serverless Postgres Connected"
         >
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>

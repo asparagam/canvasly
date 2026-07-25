@@ -15,6 +15,8 @@ import { FigmaExportModal } from './components/Modals/FigmaExportModal';
 import { PublishModal } from './components/Modals/PublishModal';
 import { SettingsModal } from './components/Modals/SettingsModal';
 import { NeonDatabaseModal } from './components/Modals/NeonDatabaseModal';
+import { GoogleCloudModal } from './components/Modals/GoogleCloudModal';
+import { PricingPlanModal } from './components/Modals/PricingPlanModal';
 import { NeonDatabaseService } from './services/neonService';
 
 import { AlertTriangle } from 'lucide-react';
@@ -53,9 +55,13 @@ export default function App() {
   const [generatingScreenId, setGeneratingScreenId] = useState<string | null>(null);
   const [progressSteps, setProgressSteps] = useState<AIProgressStep[]>([]);
 
+  // User Subscription Plan state
+  const [currentPlan, setCurrentPlan] = useState<'starter' | 'professional' | 'organization'>('starter');
+  const [pricingLimitNotice, setPricingLimitNotice] = useState<string | undefined>(undefined);
+
   // Active Modals
   const [activeModal, setActiveModal] = useState<
-    'prototype' | 'code' | 'share' | 'figma' | 'publish' | 'settings' | 'neon' | null
+    'prototype' | 'code' | 'share' | 'figma' | 'publish' | 'settings' | 'neon' | 'gcs' | 'pricing' | null
   >(null);
 
   const activeProject = projects.find((p) => p.id === activeProjectId) || projects[0];
@@ -106,6 +112,11 @@ export default function App() {
 
   // Create New Project from Dashboard Prompt
   const handleCreateProjectFromPrompt = (prompt: string, deviceType: DeviceType, _imageAttachment?: string) => {
+    if (currentPlan === 'starter' && projects.length >= 3) {
+      setPricingLimitNotice('Starter Plan limit reached (3 files to try out).');
+      setActiveModal('pricing');
+      return;
+    }
     const newId = `proj-${Date.now()}`;
     const newProject: Project = {
       id: newId,
@@ -432,7 +443,13 @@ export default function App() {
             onOpenFigmaModal={() => setActiveModal('figma')}
             onOpenPublishModal={() => setActiveModal('publish')}
             onOpenNeonModal={() => setActiveModal('neon')}
+            onOpenGcsModal={() => setActiveModal('gcs')}
+            onOpenPricingModal={() => {
+              setPricingLimitNotice(undefined);
+              setActiveModal('pricing');
+            }}
             onBackToDashboard={() => setActiveView('dashboard')}
+            currentPlanName={currentPlan === 'starter' ? 'Starter' : currentPlan === 'professional' ? 'Professional' : 'Organization'}
           />
 
           {/* Main 3-Panel Creative Layout */}
@@ -550,6 +567,28 @@ export default function App() {
               NeonDatabaseService.syncProjectToNeon(activeProject);
             }
           }}
+        />
+      )}
+
+      {activeModal === 'gcs' && (
+        <GoogleCloudModal
+          project={activeProject}
+          onClose={() => setActiveModal(null)}
+        />
+      )}
+
+      {activeModal === 'pricing' && (
+        <PricingPlanModal
+          onClose={() => setActiveModal(null)}
+          onUpgradePlan={(planName) => {
+            if (planName.toLowerCase().includes('professional')) {
+              setCurrentPlan('professional');
+            } else if (planName.toLowerCase().includes('organization')) {
+              setCurrentPlan('organization');
+            }
+          }}
+          currentPlan={currentPlan}
+          limitNotice={pricingLimitNotice}
         />
       )}
     </div>
